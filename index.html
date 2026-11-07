@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Over Home</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230b0f17'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%233987e5' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='4' fill='none' stroke='%233987e5' stroke-width='1.5'/%3E%3Cpath d='M16 16 L27 9' stroke='%2346d39a' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/leaflet.min.css">
+<link rel="stylesheet" href="style.css?v=c32380e113">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg class="radar" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r="18" class="r1"/><circle cx="20" cy="20" r="12" class="r1"/><circle cx="20" cy="20" r="6" class="r1"/>
+      <g class="sweep"><path d="M20 20 L20 2 A18 18 0 0 1 35.6 11 Z" class="beam"/></g>
+      <circle cx="29" cy="12" r="1.6" class="blip"/><circle cx="12" cy="27" r="1.3" class="blip b2"/>
+    </svg>
+    <div>
+      <h1>Sky Over Home</h1>
+      <p class="sub">Everything my Raspberry Pi's antenna has heard <span id="since"></span> <span id="updated" class="muted"></span></p>
+    </div>
+  </div>
+  <div class="top-right">
+    <a class="pill live" id="livePill" href="#live"><span class="dot"></span><span id="liveCount">–</span> <span id="liveWord">overhead now</span></a>
+    <a class="pill ghost" id="mapLink" target="_blank" rel="noopener">Live map ↗</a>
+    <button class="pill ghost" id="themeBtn" type="button" aria-label="Toggle theme">◐</button>
+  </div>
+</header>
+
+<nav class="periods" role="tablist" aria-label="Time period">
+  <button data-p="today">Today</button>
+  <button data-p="24h">24 hours</button>
+  <button data-p="7d">7 days</button>
+  <button data-p="30d">30 days</button>
+  <button data-p="all" class="on">All time</button>
+</nav>
+
+<main>
+  <section class="facts" id="facts" aria-live="polite"></section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="card" id="live">
+    <div class="card-h"><h2>Right now, overhead</h2><span class="muted" id="liveTs"></span></div>
+    <div class="live-grid" id="liveGrid"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-h">
+      <h2>How busy is my sky?</h2>
+      <div class="seg" id="tsSeg">
+        <button data-k="hour" class="on">Per hour</button><button data-k="day">Per day</button>
+        <button data-k="week">Per week</button><button data-k="month">Per month</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="tsChart"></canvas></div>
+    <p class="note" id="tsNote"></p>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <div class="card-h"><h2>Rush hour</h2><span class="muted">flights first heard, by weekday and hour</span></div>
+      <div id="heatmap" class="heatmap"></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h2>Coming &amp; going</h2><span class="muted" id="apName"></span></div>
+      <div id="localBar"></div>
+      <div class="split-stats" id="engineBars"></div>
+    </section>
+  </div>
+
+  <div class="three">
+    <section class="card"><div class="card-h"><h2>Who built them</h2></div><div id="makers" class="bars"></div></section>
+    <section class="card"><div class="card-h"><h2>Top aircraft types</h2></div><div id="types" class="bars"></div></section>
+    <section class="card"><div class="card-h"><h2>Top airlines</h2></div><div id="airlines" class="bars"></div></section>
+  </div>
+
+  <section class="card">
+    <div class="card-h"><h2>Where they're flying</h2><span class="muted" id="routeCover"></span></div>
+    <div class="map-row">
+      <div id="routeMap" class="map"></div>
+      <div class="map-side">
+        <h3>Busiest routes</h3>
+        <ol id="routes" class="rank"></ol>
+      </div>
+    </div>
+    <div class="two inner">
+      <div><h3>Top airports (to or from)</h3><div id="airports" class="bars"></div></div>
+      <div><h3>Countries flown to or from</h3><div id="rcountries" class="bars"></div></div>
+    </div>
+    <p class="note">Honest caveat: aircraft don't broadcast where they're going. Routes are looked up by callsign
+      from <a href="https://www.adsbdb.com" target="_blank" rel="noopener">adsbdb</a>, a community database. That gives the
+      route a flight number <em>usually</em> flies, not a live flight plan. I hide routes whose path passes more than
+      550 km from the antenna, because those are probably out of date.</p>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Hall of records</h2></div>
+    <div class="records" id="records"></div>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <div class="card-h"><h2>Frequent flyers</h2><span class="muted">same aircraft, seen again and again</span></div>
+      <div id="frequent" class="list"></div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h2>Registered in</h2><span class="muted">from each aircraft's ICAO address</span></div>
+      <div id="regc" class="bars"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-h"><h2>Rare &amp; special</h2></div>
+    <div class="special" id="special"></div>
+  </section>
+
+  <div class="two">
+    <section class="card">
+      <div class="card-h"><h2>How far can I hear?</h2><span class="muted">furthest contact in each direction</span></div>
+      <div id="polar" class="polar"></div>
+    </section>
+    <section class="card">
+      <div class="card-h">
+        <h2>Distance &amp; altitude</h2>
+        <div class="seg" id="histSeg"><button data-k="dist" class="on">Furthest point</button><button data-k="alt">Highest altitude</button></div>
+      </div>
+      <div class="chart-wrap short"><canvas id="histChart"></canvas></div>
+    </section>
+  </div>
+
+  <section class="card" id="log">
+    <div class="card-h">
+      <h2>Flight log</h2>
+      <input id="search" type="search" placeholder="Search callsign, reg, type, airline, airport…" autocomplete="off">
+    </div>
+    <div class="table-wrap">
+      <table class="flights">
+        <thead><tr><th>Heard</th><th>Flight</th><th>Aircraft</th><th>Route</th><th class="num">Max alt</th><th class="num loc">Closest</th><th class="num loc">Furthest</th></tr></thead>
+        <tbody id="flightRows"></tbody>
+      </table>
+    </div>
+    <div class="pager"><button id="prev" type="button">← Newer</button><span id="pageInfo" class="muted"></span><button id="next" type="button">Older →</button></div>
+  </section>
+</main>
+
+<footer>
+  Built on the Pi from readsb data. Aircraft details from tar1090's offline database. Routes and photos from adsbdb (best guess).
+  Refreshes every minute.
+</footer>
+
+<dialog id="modal"><div id="modalBody"></div><button class="close" id="closeModal" aria-label="Close">×</button></dialog>
+<div id="tip" class="tip" role="tooltip"></div>
+
+<script>window.FS_STATIC = true;</script>
+<script src="vendor/chart.umd.min.js"></script>
+<script src="vendor/leaflet.min.js"></script>
+<script src="app.js?v=c89ebf4cbb"></script>
+</body>
+</html>
